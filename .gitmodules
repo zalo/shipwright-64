@@ -1,0 +1,15 @@
+[submodule "libultraship"]
+	path = libultraship
+	url = https://github.com/zalo/libultraship.git
+	branch = feature/emscripten-web-port
+[submodule "ZAPDTR"]
+	path = ZAPDTR
+	url = https://github.com/zalo/ZAPDTR.git
+	branch = feature/emscripten-web-port
+[submodule "OTRExporter"]
+	path = OTRExporter
+	url = https://github.com/zalo/OTRExporter.git
+	branch = feature/emscripten-web-port
+[submodule "libsm64"]
+	path = libsm64
+	url = https://github.com/libsm64/libsm64.git

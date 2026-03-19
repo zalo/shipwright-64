@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ship of Harkinian - Web</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a1a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #e0e0e0;
+    }
+
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+      z-index: 1;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #overlay h1 {
+      font-size: 2.2rem;
+      margin-bottom: 0.3rem;
+      color: #ffffff;
+    }
+
+    #overlay .subtitle {
+      font-size: 0.95rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    #otr-picker {
+      background: #111128;
+      border: 2px dashed #2a2a5a;
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      margin-bottom: 1.5rem;
+    }
+
+    #otr-picker:hover {
+      border-color: #5588ff;
+      background: #15153a;
+    }
+
+    #otr-picker p {
+      font-size: 1.05rem;
+      margin-bottom: 0.5rem;
+    }
+
+    #otr-picker .hint {
+      font-size: 0.82rem;
+      color: #666;
+    }
+
+    #otr-file {
+      display: none;
+    }
+
+    #progress-container {
+      width: 320px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #progress-bar-outer {
+      width: 100%;
+      height: 8px;
+      background: #111128;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+
+    #progress-bar-inner {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #5588ff, #2244aa);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    #progress-bar-inner.extracting {
+      transition: none;
+      animation: fake-progress 30s cubic-bezier(0.1, 0.4, 0.2, 0.85) forwards;
+    }
+
+    @keyframes fake-progress {
+      0%   { width: 25%; }
+      100% { width: 90%; }
+    }
+
+    #status {
+      font-size: 0.9rem;
+      color: #aaa;
+      text-align: center;
+      min-height: 1.5em;
+    }
+
+    #error-msg {
+      color: #ff5566;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      min-height: 1.5em;
+      text-align: center;
+    }
+
+    /* Touch Gamepad */
+    #touch-gamepad {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 5; pointer-events: none; user-select: none; -webkit-user-select: none;
+    }
+    #touch-gamepad.visible { display: block; }
+    #touch-stick-zone {
+      position: absolute; left: 10px; bottom: 10px; width: 160px; height: 160px;
+      pointer-events: auto; touch-action: none;
+    }
+    #touch-stick-base {
+      position: absolute; left: 20px; bottom: 20px; width: 120px; height: 120px;
+      border-radius: 50%; background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.2);
+    }
+    #touch-stick-knob {
+      position: absolute; width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(255,255,255,0.35); left: 35px; top: 35px;
+      pointer-events: none; transition: none;
+    }
+    .touch-btn {
+      position: absolute; pointer-events: auto; touch-action: none;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-family: monospace; font-weight: bold; color: rgba(255,255,255,0.7);
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    .touch-btn:active, .touch-btn.pressed { background: rgba(255,255,255,0.3) !important; }
+    #tb-a { right: 20px; bottom: 100px; width: 64px; height: 64px; background: rgba(255,255,255,0.12); font-size: 22px; }
+    #tb-b { right: 90px; bottom: 50px; width: 56px; height: 56px; background: rgba(255,255,255,0.1); font-size: 18px; }
+    #tb-z { right: 160px; bottom: 100px; width: 50px; height: 50px; background: rgba(255,255,255,0.08); font-size: 16px; }
+    #tb-start { top: 10px; left: 50%; transform: translateX(-50%); width: 60px; height: 34px;
+      border-radius: 17px; background: rgba(255,255,255,0.08); font-size: 11px; }
+    #tb-r { right: 20px; top: 10px; width: 50px; height: 34px;
+      border-radius: 17px; background: rgba(255,255,255,0.08); font-size: 14px; }
+    #tb-l { left: 10px; top: 10px; width: 50px; height: 34px;
+      border-radius: 17px; background: rgba(255,255,255,0.08); font-size: 14px; }
+    .touch-cbtn {
+      position: absolute; pointer-events: auto; touch-action: none;
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: monospace; font-size: 12px; font-weight: bold;
+      color: rgba(255,200,50,0.7); background: rgba(255,200,50,0.08);
+      border: 2px solid rgba(255,200,50,0.15);
+    }
+    .touch-cbtn:active, .touch-cbtn.pressed { background: rgba(255,200,50,0.3) !important; }
+    #tb-cu { right: 110px; bottom: 210px; }
+    #tb-cd { right: 110px; bottom: 140px; }
+    #tb-cl { right: 145px; bottom: 175px; }
+    #tb-cr { right: 75px; bottom: 175px; }
+    #tb-esc { top: 10px; right: 80px; width: 34px; height: 34px;
+      border-radius: 8px; background: rgba(255,255,255,0.08); font-size: 10px;
+      letter-spacing: -0.5px; }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Ship of Harkinian</h1>
+    <p class="subtitle">WebAssembly Port</p>
+
+    <div id="otr-picker" onclick="document.getElementById('otr-file').click()">
+      <p>Click or drag to load game files</p>
+      <p class="hint">Requires soh.o2r and either oot.o2r or a .z64 ROM</p>
+    </div>
+    <input type="file" id="otr-file" accept=".otr,.o2r,.z64,.n64,.v64" multiple>
+
+    <!-- SM64 ROM picker — optional, enables Mario Mode -->
+    <div id="sm64-picker" onclick="document.getElementById('sm64-file').click()"
+         style="margin-top:12px; padding:12px 16px; border:2px dashed #e52213;
+                border-radius:8px; cursor:pointer; opacity:0.85; font-size:13px;">
+      <p style="margin:0; font-weight:bold; color:#e52213;">&#127875; Optional: Mario Mode</p>
+      <p style="margin:4px 0 0; color:#ccc;">
+        Load a <strong>Super Mario 64 (US) .z64</strong> ROM to play as Mario in Hyrule
+      </p>
+      <p id="sm64-status" style="margin:4px 0 0; color:#aaa; font-size:11px;">Not loaded</p>
+    </div>
+    <input type="file" id="sm64-file" accept=".z64,.n64,.v64" style="display:none">
+
+    <div id="progress-container">
+      <div id="progress-bar-outer">
+        <div id="progress-bar-inner"></div>
+      </div>
+      <div id="status">Initializing...</div>
+    </div>
+
+    <div id="error-msg"></div>
+  </div>
+
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  <!-- Hidden input for mobile keyboard on Emscripten (iOS/Android) -->
+  <input id="mobile-keyboard-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+    style="position:fixed;left:-9999px;top:50%;width:1px;height:1px;opacity:0;z-index:-1;font-size:16px;" />
+
+  <div id="touch-gamepad">
+    <div id="touch-stick-zone">
+      <div id="touch-stick-base">
+        <div id="touch-stick-knob"></div>
+      </div>
+    </div>
+    <div class="touch-btn" id="tb-a">A</div>
+    <div class="touch-btn" id="tb-b">B</div>
+    <div class="touch-btn" id="tb-z">Z</div>
+    <div class="touch-btn" id="tb-start">START</div>
+    <div class="touch-btn" id="tb-r">R</div>
+    <div class="touch-btn" id="tb-l">L</div>
+    <div class="touch-btn" id="tb-esc">ESC</div>
+    <div class="touch-cbtn" id="tb-cu">▲</div>
+    <div class="touch-cbtn" id="tb-cd">▼</div>
+    <div class="touch-cbtn" id="tb-cl">◀</div>
+    <div class="touch-cbtn" id="tb-cr">▶</div>
+  </div>
+
+  <script>
+    var OTR_DB_NAME = 'soh_otr_files';
+    var OTR_DB_STORE = 'otr';
+    var OTR_DB_VERSION = 1;
+
+    // SM64 ROM state
+    var sm64RomBuffer = null;   // buffered while game is still loading
+    var sm64RomSize   = 0;
+    var sm64Loaded    = false;
+
+    // Called after the game's WebGL context is live
+    function tryLoadBufferedSM64Rom() {
+      if (!sm64RomBuffer || sm64Loaded) return;
+      if (typeof Module === 'undefined' || typeof Module._web_load_sm64_rom !== 'function') {
+        // Not ready yet — will retry via the file handler when game starts
+        return;
+      }
+      console.log('[SM64] Loading buffered SM64 ROM (' + sm64RomSize + ' bytes)...');
+      FS.writeFile('/sm64.z64', new Uint8Array(sm64RomBuffer));
+      var result = Module.ccall('web_load_sm64_rom', 'number',
+          ['string', 'number'], ['/sm64.z64', sm64RomSize]);
+      if (result === 0) {
+        sm64Loaded = true;
+        var el = document.getElementById('sm64-status');
+        if (el) el.textContent = '✓ Mario loaded! Enable "Mario Mode" in enhancements.';
+        var picker = document.getElementById('sm64-picker');
+        if (picker) picker.style.borderColor = '#4caf50';
+        console.log('[SM64] Mario Mode ready.');
+      } else {
+        var el = document.getElementById('sm64-status');
+        if (el) el.textContent = 'Error loading ROM (code ' + result + ') — must be SM64 US z64';
+        console.error('[SM64] web_load_sm64_rom returned', result);
+      }
+      sm64RomBuffer = null; // free memory
+    }
+
+    function handleSM64Rom(file) {
+      if (!file) return;
+      var el = document.getElementById('sm64-status');
+      if (el) el.textContent = 'Reading ' + file.name + '...';
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var buf = e.target.result;
+        // Quick header validation: SM64 US z64 = 80 37 12 40
+        var view = new DataView(buf);
+        var magic = view.getUint32(0, false); // big-endian
+        if (magic !== 0x80371240) {
+          if (el) el.textContent = 'Invalid ROM — must be SM64 US .z64 (big-endian)';
+          return;
+        }
+        sm64RomBuffer = buf;
+        sm64RomSize   = buf.byteLength;
+        if (el) el.textContent = 'ROM validated (' + (buf.byteLength / 1024 / 1024).toFixed(1) + ' MB) — loading...';
+        tryLoadBufferedSM64Rom();
+      };
+      reader.onerror = function() {
+        if (el) el.textContent = 'Failed to read ' + file.name;
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Wire up the SM64 file input
+    document.addEventListener('DOMContentLoaded', function() {
+      var sm64Input = document.getElementById('sm64-file');
+      if (sm64Input) {
+        sm64Input.addEventListener('change', function(e) {
+          handleSM64Rom(e.target.files[0]);
+        });
+      }
+    });
+
+    var otrFilesReady = false;
+    var audioResumed = false;
+    var gameStarted = false;
+    var requiredFiles = {};
+
+    // ---- IndexedDB helpers ----
+
+    function openOtrDB() {
+      return new Promise(function(resolve, reject) {
+        var req = indexedDB.open(OTR_DB_NAME, OTR_DB_VERSION);
+        req.onupgradeneeded = function(e) {
+          e.target.result.createObjectStore(OTR_DB_STORE);
+        };
+        req.onsuccess = function(e) { resolve(e.target.result); };
+        req.onerror = function(e) { reject(e.target.error); };
+      });
+    }
+
+    function getCachedFile(name) {
+      return openOtrDB().then(function(db) {
+        return new Promise(function(resolve, reject) {
+          var tx = db.transaction(OTR_DB_STORE, 'readonly');
+          var store = tx.objectStore(OTR_DB_STORE);
+          var req = store.get(name);
+          req.onsuccess = function() { resolve(req.result || null); };
+          req.onerror = function() { resolve(null); };
+        });
+      });
+    }
+
+    function cacheFile(name, arrayBuffer) {
+      return openOtrDB().then(function(db) {
+        return new Promise(function(resolve, reject) {
+          var tx = db.transaction(OTR_DB_STORE, 'readwrite');
+          var store = tx.objectStore(OTR_DB_STORE);
+          store.put(arrayBuffer, name);
+          tx.oncomplete = function() { resolve(); };
+          tx.onerror = function(e) { reject(e.target.error); };
+        });
+      });
+    }
+
+    function listCachedFiles() {
+      return openOtrDB().then(function(db) {
+        return new Promise(function(resolve, reject) {
+          var tx = db.transaction(OTR_DB_STORE, 'readonly');
+          var store = tx.objectStore(OTR_DB_STORE);
+          var req = store.getAllKeys();
+          req.onsuccess = function() { resolve(req.result || []); };
+          req.onerror = function() { resolve([]); };
+        });
+      });
+    }
+
+    // ---- UI helpers ----
+
+    function showError(msg) {
+      document.getElementById('error-msg').textContent = msg;
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    function setProgress(pct) {
+      document.getElementById('progress-bar-inner').style.width = pct + '%';
+    }
+
+    function showProgress() {
+      document.getElementById('otr-picker').style.display = 'none';
+      document.getElementById('progress-container').style.display = 'flex';
+    }
+
+    function hideProgress() {
+      document.getElementById('otr-picker').style.display = '';
+      document.getElementById('progress-container').style.display = 'none';
+    }
+
+    function hideOverlay() {
+      var el = document.getElementById('overlay');
+      if (el.classList.contains('hidden')) return;
+      el.classList.add('hidden');
+      // Fully remove from layout after fade-out transition
+      setTimeout(function() { el.style.display = 'none'; }, 600);
+      document.getElementById('canvas').focus();
+      // Game is now running — try to load any buffered SM64 ROM
+      setTimeout(tryLoadBufferedSM64Rom, 500);
+    }
+
+    // ---- Write OTR files to Emscripten FS ----
+
+    function getWritePath() {
+      // Game looks for OTR files relative to cwd which is "/"
+      return '/';
+    }
+
+    function writeOtrToFS(name, arrayBuffer) {
+      try {
+        var data = new Uint8Array(arrayBuffer);
+        var writePath = getWritePath();
+
+        var filePath = writePath + name;
+        FS.writeFile(filePath, data);
+        console.log('[Web] OTR written to ' + filePath + ' (' + data.length + ' bytes)');
+        return true;
+      } catch (e) {
+        showError('Failed to write ' + name + ' to virtual filesystem: ' + e.message);
+        console.error('[Web] writeOtrToFS error:', e);
+        return false;
+      }
+    }
+
+    function validateRequiredFiles() {
+      // Check that at least soh.o2r and one oot archive exist in the virtual FS
+      try {
+        var hasSoh = false;
+        var hasOot = false;
+        var files = FS.readdir('/');
+        for (var i = 0; i < files.length; i++) {
+          var f = files[i].toLowerCase();
+          if (f === 'soh.o2r') hasSoh = true;
+          if (f === 'oot.o2r' || f === 'oot-mq.o2r') hasOot = true;
+        }
+        if (!hasSoh) return 'Missing soh.o2r — please upload the SoH archive.';
+        if (!hasOot) return 'Missing oot.o2r — please upload an OoT archive.';
+        return null;
+      } catch (e) {
+        return null; // FS not ready, let engine handle it
+      }
+    }
+
+    function finalizeOtrLoad() {
+      var error = validateRequiredFiles();
+      if (error) {
+        showError(error);
+        hideProgress();
+        return;
+      }
+
+      otrFilesReady = true;
+      setStatus('Game files loaded. Starting...');
+      setProgress(100);
+
+      // Configure Anchor networking from URL hash before starting the game
+      configureAnchorFromHash();
+
+      // Tell the C side that OTR files are ready
+      if (typeof Module._web_otr_loaded === 'function') {
+        Module._web_otr_loaded();
+      }
+
+      waitForGameRender();
+    }
+
+    // ---- Eager prefetch of soh.o2r ----
+    // Starts immediately at page load, in parallel with WASM compilation.
+    // The result is written to the Emscripten FS once the runtime is ready.
+
+    var _sohO2rPromise = (function() {
+      // First check IndexedDB cache
+      return getCachedFile('soh.o2r').then(function(buf) {
+        if (buf) {
+          console.log('[Web] soh.o2r found in IndexedDB cache (' + buf.byteLength + ' bytes)');
+          return buf;
+        }
+        // Not cached — fetch from server
+        return new Promise(function(resolve, reject) {
+          console.log('[Web] Prefetching soh.o2r from server...');
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', 'soh.o2r', true);
+          xhr.responseType = 'arraybuffer';
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+              console.log('[Web] soh.o2r downloaded: ' + xhr.response.byteLength + ' bytes');
+              cacheFile('soh.o2r', xhr.response).catch(function() {});
+              resolve(xhr.response);
+            } else {
+              reject('HTTP ' + xhr.status);
+            }
+          };
+          xhr.onerror = function() { reject('network error'); };
+          xhr.send();
+        });
+      }).catch(function(err) {
+        console.warn('[Web] Failed to prefetch soh.o2r:', err);
+        return null;
+      });
+    })();
+
+    function installSohO2r() {
+      return _sohO2rPromise.then(function(buf) {
+        if (buf) {
+          writeOtrToFS('soh.o2r', buf);
+          return true;
+        }
+        return false;
+      });
+    }
+
+    // ---- ROM detection helpers ----
+
+    function isRomFile(name) {
+      var ext = name.toLowerCase().split('.').pop();
+      return ext === 'z64' || ext === 'n64' || ext === 'v64';
+    }
+
+    function extractRomInBrowser(romArrayBuffer, romFileName) {
+      setStatus('Writing ROM to virtual filesystem...');
+      setProgress(20);
+
+      var romData = new Uint8Array(romArrayBuffer);
+      try {
+        FS.writeFile('/rom.z64', romData);
+      } catch (e) {
+        showError('Failed to write ROM to virtual filesystem: ' + e.message);
+        hideProgress();
+        return;
+      }
+
+      setStatus('Extracting ROM assets (~25 seconds)...');
+      setProgress(25);
+
+      // Start CSS animation for fake progress (runs on compositor thread,
+      // keeps animating even while the main thread is blocked by WASM)
+      var bar = document.getElementById('progress-bar-inner');
+      bar.classList.add('extracting');
+
+      // Run extraction (synchronous — ZAPD runs single-threaded)
+      // Use setTimeout to allow the UI/animation to start before blocking
+      setTimeout(function() {
+        var romPathPtr = Module.allocateUTF8('/rom.z64');
+        var outPathPtr = Module.allocateUTF8('/oot.o2r');
+        var result = Module._web_extract_rom(romPathPtr, outPathPtr);
+        Module._free(romPathPtr);
+        Module._free(outPathPtr);
+
+        if (result < 0) {
+          bar.classList.remove('extracting');
+          showError('ROM extraction failed (error ' + result + '). Check the browser console for details.');
+          hideProgress();
+          try { FS.unlink('/rom.z64'); } catch(e) {}
+          return;
+        }
+
+        // result: 0 = vanilla (oot.o2r), 1 = MQ (oot-mq.o2r)
+        var actualOutputName = result === 1 ? 'oot-mq.o2r' : 'oot.o2r';
+        var actualOutputPath = '/' + actualOutputName;
+
+        // Stop fake progress animation and jump to real progress
+        bar.classList.remove('extracting');
+        setStatus('Caching extracted archive...');
+        setProgress(80);
+
+        // Read the generated .o2r from MEMFS and cache it
+        try {
+          var o2rData = FS.readFile(actualOutputPath);
+          var o2rBuffer = o2rData.buffer;
+
+          cacheFile(actualOutputName, o2rBuffer).then(function() {
+            console.log('[Web] Cached ' + actualOutputName + ' to IndexedDB (' + o2rData.length + ' bytes)');
+            // Clean up ROM from MEMFS (save memory)
+            try { FS.unlink('/rom.z64'); } catch(e) {}
+            setProgress(90);
+            setStatus('Extraction complete.');
+            finalizeOtrLoad();
+          }).catch(function(err) {
+            console.warn('[Web] Failed to cache ' + actualOutputName + ':', err);
+            try { FS.unlink('/rom.z64'); } catch(e) {}
+            finalizeOtrLoad();
+          });
+        } catch (e) {
+          showError('Failed to read extracted archive: ' + e.message);
+          hideProgress();
+        }
+      }, 50);
+    }
+
+    // ---- File handler ----
+
+    function handleOtrFiles(files) {
+      showError('');
+      showProgress();
+      setStatus('Reading game files...');
+      setProgress(10);
+
+      var romFiles = [];
+      var otrFiles = [];
+
+      for (var i = 0; i < files.length; i++) {
+        if (isRomFile(files[i].name)) {
+          romFiles.push(files[i]);
+        } else {
+          otrFiles.push(files[i]);
+        }
+      }
+
+      var processed = 0;
+      var totalOtr = otrFiles.length;
+      var pendingRom = romFiles.length > 0 ? romFiles[0] : null;
+
+      function onAllOtrProcessed() {
+        if (pendingRom) {
+          // Read and extract the ROM after OTR files are loaded
+          setStatus('Reading ROM file...');
+          setProgress(15);
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            extractRomInBrowser(e.target.result, pendingRom.name);
+          };
+          reader.onerror = function() {
+            showError('Failed to read ROM file: ' + pendingRom.name);
+            hideProgress();
+          };
+          reader.readAsArrayBuffer(pendingRom);
+        } else {
+          setProgress(90);
+          setStatus('All files loaded.');
+          finalizeOtrLoad();
+        }
+      }
+
+      if (totalOtr === 0) {
+        onAllOtrProcessed();
+        return;
+      }
+
+      for (var i = 0; i < otrFiles.length; i++) {
+        (function(file) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var buf = e.target.result;
+            var name = file.name.toLowerCase();
+
+            setProgress(10 + (processed / totalOtr) * 60);
+            setStatus('Caching ' + file.name + '...');
+
+            // Cache for future visits
+            cacheFile(name, buf).then(function() {
+              writeOtrToFS(name, buf);
+              processed++;
+              if (processed === totalOtr) {
+                onAllOtrProcessed();
+              }
+            }).catch(function() {
+              writeOtrToFS(name, buf);
+              processed++;
+              if (processed === totalOtr) {
+                onAllOtrProcessed();
+              }
+            });
+          };
+          reader.onerror = function() {
+            showError('Failed to read ' + file.name);
+          };
+          reader.readAsArrayBuffer(file);
+        })(otrFiles[i]);
+      }
+    }
+
+    document.getElementById('otr-file').addEventListener('change', function(e) {
+      if (e.target.files.length > 0) {
+        handleOtrFiles(e.target.files);
+      }
+    });
+
+    // Drag-and-drop
+    document.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer.files.length > 0) {
+        handleOtrFiles(e.dataTransfer.files);
+      }
+    });
+
+    // ---- Audio context resume ----
+    // iOS problem: Emscripten's SDL2 registers one-shot (listenOnce) gesture
+    // listeners via autoResumeAudioContext. These fire and are removed before
+    // SDL has created its AudioContext on first page load. After that, no
+    // listeners remain and audio is permanently broken.
+    //
+    // Fix: Register PERSISTENT listeners that keep trying on every interaction.
+
+    function resumeAudio() {
+      if (audioResumed) return;
+      try {
+        var ctx = Module.SDL2 && Module.SDL2.audioContext;
+        if (!ctx) return;
+        if (ctx.state === 'running') {
+          audioResumed = true;
+          return;
+        }
+        if (ctx.state === 'suspended') {
+          ctx.resume().then(function() {
+            if (ctx.state === 'running') {
+              audioResumed = true;
+              console.log('[Web] AudioContext resumed');
+            }
+          }).catch(function() {});
+        }
+      } catch(e) {}
+    }
+
+    // Persistent listeners on document (unlike Emscripten's one-shot listeners)
+    ['click', 'mousedown', 'keydown', 'touchstart', 'touchend', 'pointerdown', 'pointerup'].forEach(function(evt) {
+      document.addEventListener(evt, resumeAudio, true);
+    });
+
+    // Also bind directly on the canvas once it exists
+    function bindCanvasAudio() {
+      var c = document.getElementById('canvas');
+      if (c && !c._audioBound) {
+        c._audioBound = true;
+        ['touchstart', 'touchend', 'mousedown', 'click', 'pointerdown', 'pointerup'].forEach(function(evt) {
+          c.addEventListener(evt, resumeAudio, true);
+        });
+      }
+    }
+    bindCanvasAudio();
+    setTimeout(bindCanvasAudio, 2000);
+
+    // ---- Watch for game rendering ----
+
+    function waitForGameRender() {
+      var canvas = document.getElementById('canvas');
+      var checkInterval = setInterval(function() {
+        try {
+          var ctx = canvas.getContext('webgl2') || canvas.getContext('webgl');
+          if (ctx) {
+            // Check if the canvas has any non-zero pixels anywhere (not just center)
+            var pixels = new Uint8Array(4);
+            // Sample a few points — game may render non-black outside center
+            var points = [
+              [canvas.width/2, canvas.height/2],
+              [canvas.width/4, canvas.height/4],
+              [canvas.width*3/4, canvas.height/4]
+            ];
+            for (var i = 0; i < points.length; i++) {
+              ctx.readPixels(points[i][0], points[i][1], 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, pixels);
+              if (pixels[0] > 0 || pixels[1] > 0 || pixels[2] > 0) {
+                hideOverlay();
+                clearInterval(checkInterval);
+                return;
+              }
+            }
+          }
+        } catch(e) {}
+      }, 200);
+      // Fallback: hide after 5 seconds regardless
+      setTimeout(function() { clearInterval(checkInterval); hideOverlay(); }, 5000);
+    }
+
+    // ---- URL hash parameter: #rom=URL ----
+
+    function getHashParams() {
+      var params = {};
+      var hash = window.location.hash.substring(1);
+      if (!hash) return params;
+      hash.split('&').forEach(function(part) {
+        var eq = part.indexOf('=');
+        if (eq > 0) {
+          params[decodeURIComponent(part.substring(0, eq))] = decodeURIComponent(part.substring(eq + 1));
+        }
+      });
+      return params;
+    }
+
+    function fetchRomFromUrl(url) {
+      showProgress();
+      setStatus('Downloading ROM from URL...');
+      setProgress(5);
+      console.log('[Web] Fetching ROM from: ' + url);
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'arraybuffer';
+
+      xhr.onprogress = function(e) {
+        if (e.lengthComputable) {
+          var pct = Math.round((e.loaded / e.total) * 100);
+          setProgress(5 + pct * 0.4);
+          setStatus('Downloading ROM... ' + pct + '%');
+        }
+      };
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          console.log('[Web] ROM downloaded: ' + xhr.response.byteLength + ' bytes');
+          setStatus('ROM downloaded. Preparing extraction...');
+          setProgress(50);
+
+          // Determine filename from URL or use default
+          var urlPath = url.split('?')[0].split('#')[0];
+          var fileName = urlPath.split('/').pop() || 'rom.z64';
+          if (!isRomFile(fileName)) fileName = 'rom.z64';
+
+          extractRomInBrowser(xhr.response, fileName);
+        } else {
+          showError('Failed to download ROM: HTTP ' + xhr.status);
+          hideProgress();
+        }
+      };
+
+      xhr.onerror = function() {
+        showError('Failed to download ROM. Check CORS and URL.');
+        hideProgress();
+      };
+
+      xhr.send();
+    }
+
+    function checkHashRom() {
+      var params = getHashParams();
+      if (params.rom) {
+        fetchRomFromUrl(params.rom);
+        return true;
+      }
+      return false;
+    }
+
+    // ---- URL hash parameter: #soh=URL&oot=URL for .o2r files ----
+
+    // Convert Google Drive share URLs to direct download URLs
+    function toDirectUrl(url) {
+      var match = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+      if (match) {
+        return 'https://drive.google.com/uc?export=download&id=' + match[1];
+      }
+      return url;
+    }
+
+    function fetchO2rFromUrl(url, name, onProgress, onDone) {
+      var directUrl = toDirectUrl(url);
+      console.log('[Web] Fetching ' + name + ' from: ' + directUrl);
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', directUrl, true);
+      xhr.responseType = 'arraybuffer';
+
+      xhr.onprogress = function(e) {
+        if (e.lengthComputable) {
+          onProgress(e.loaded, e.total);
+        }
+      };
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var buf = xhr.response;
+          console.log('[Web] Downloaded ' + name + ': ' + buf.byteLength + ' bytes');
+          cacheFile(name, buf).then(function() {
+            writeOtrToFS(name, buf);
+            onDone(null);
+          }).catch(function() {
+            writeOtrToFS(name, buf);
+            onDone(null);
+          });
+        } else {
+          onDone('HTTP ' + xhr.status);
+        }
+      };
+
+      xhr.onerror = function() {
+        onDone('Network error (check CORS)');
+      };
+
+      xhr.send();
+    }
+
+    function checkHashO2r() {
+      var params = getHashParams();
+      if (!params.soh && !params.oot) return false;
+
+      showProgress();
+      var downloads = [];
+      if (params.soh) downloads.push({ url: params.soh, name: 'soh.o2r' });
+      if (params.oot) downloads.push({ url: params.oot, name: 'oot.o2r' });
+
+      var completed = 0;
+      var total = downloads.length;
+      var errors = [];
+
+      setStatus('Downloading game archives (' + total + ' files)...');
+      setProgress(5);
+
+      downloads.forEach(function(dl, idx) {
+        fetchO2rFromUrl(dl.url, dl.name,
+          function(loaded, fileTotal) {
+            var filePct = Math.round((loaded / fileTotal) * 100);
+            setStatus('Downloading ' + dl.name + '... ' + filePct + '%');
+            var overallPct = 5 + ((completed + (loaded / fileTotal)) / total) * 85;
+            setProgress(Math.round(overallPct));
+          },
+          function(err) {
+            completed++;
+            if (err) errors.push(dl.name + ': ' + err);
+            if (completed === total) {
+              if (errors.length > 0) {
+                showError('Download failed: ' + errors.join(', '));
+                hideProgress();
+              } else {
+                setProgress(95);
+                setStatus('All archives downloaded.');
+                finalizeOtrLoad();
+              }
+            }
+          }
+        );
+      });
+
+      return true;
+    }
+
+    // ---- URL hash parameter: Anchor/PartyKit networking config ----
+    // Params: room, name, color (hex RGB), team
+    // Example: #room=myroom&name=Player1&color=FF0000&team=red
+
+    function configureAnchorFromHash() {
+      var params = getHashParams();
+      if (!params.room && !params.name && !params.color && !params.team) return false;
+
+      // Store config as globals for C++ to read via EM_JS during game init
+      window._anchorConfig = {
+        room:  params.room  || 'default',
+        name:  params.name  || '',
+        color: params.color || '',
+        team:  params.team  || 'default'
+      };
+
+      console.log('[Web] Anchor config stored for game init:', window._anchorConfig);
+      return true;
+    }
+
+    // ---- Check for cached OTR files on load ----
+
+    function checkCachedOtr() {
+      listCachedFiles().then(function(keys) {
+        if (keys.length > 0) {
+          showProgress();
+          setStatus('Found cached game files. Loading...');
+          setProgress(10);
+
+          var loaded = 0;
+          var total = keys.length;
+
+          function tryLoadCached() {
+            if (typeof FS === 'undefined') {
+              setTimeout(tryLoadCached, 100);
+              return;
+            }
+
+            keys.forEach(function(key) {
+              getCachedFile(key).then(function(buf) {
+                if (buf) {
+                  writeOtrToFS(key, buf);
+                }
+                loaded++;
+                setProgress(10 + (loaded / total) * 80);
+                if (loaded === total) {
+                  finalizeOtrLoad();
+                }
+              });
+            });
+          }
+
+          tryLoadCached();
+        }
+      }).catch(function() {
+        // No cached files
+      });
+    }
+
+    // ---- Emscripten Module configuration ----
+
+    var Module = {
+      canvas: (function() {
+        return document.getElementById('canvas');
+      })(),
+
+      noInitialRun: false,
+
+      print: function(text) {
+        console.log('[SOH] ' + text);
+      },
+
+      printErr: function(text) {
+        console.error('[SOH] ' + text);
+      },
+
+      setStatus: function(text) {
+        if (text) {
+          setStatus(text);
+        }
+      },
+
+      monitorRunDependencies: function(left) {
+        if (left === 0) {
+          setStatus('All dependencies loaded.');
+        } else {
+          setStatus('Loading... (' + left + ' remaining)');
+        }
+      },
+
+      onRuntimeInitialized: function() {
+        setStatus('Runtime initialized. Loading game files...');
+        // Install soh.o2r (prefetched during page load) before any other file logic
+        installSohO2r().then(function(installed) {
+          if (installed) {
+            console.log('[Web] soh.o2r installed to virtual filesystem');
+          }
+          // Check URL hash for o2r/ROM parameters first, then fall back to cached files
+          if (checkHashO2r()) {
+            // Downloading o2r files from URL hash
+          } else if (!checkHashRom()) {
+            checkCachedOtr();
+          }
+        });
+      },
+
+      locateFile: function(path) {
+        return path;
+      }
+    };
+
+    window.onerror = function(msg) {
+      if (msg && msg.indexOf('abort') !== -1) {
+        showError('An error occurred. Check the browser console for details.');
+      }
+    };
+
+    // ---- Touch Gamepad (UI only — WASM integration handled separately) ----
+    var TouchGamepad = {
+      _active: false,
+      _stickX: 0,       // -128..127
+      _stickY: 0,       // -128..127
+      _buttons: {},      // id -> true/false
+      _stickTouchId: null,
+      _stickCenterX: 0,
+      _stickCenterY: 0,
+      _knob: null,
+
+      // Button IDs for the integration layer to read
+      BUTTON_IDS: ['tb-a', 'tb-b', 'tb-z', 'tb-start', 'tb-r', 'tb-l', 'tb-cu', 'tb-cd', 'tb-cl', 'tb-cr', 'tb-esc'],
+
+      init: function() {
+        if (!('ontouchstart' in window) && navigator.maxTouchPoints <= 0) return;
+        this._knob = document.getElementById('touch-stick-knob');
+        document.getElementById('touch-gamepad').classList.add('visible');
+        this._active = true;
+        this._setupButtons();
+        this._setupStick();
+        console.log('[TouchGamepad] Initialized for touch device');
+      },
+
+      // Public API for WASM integration
+      isActive: function() { return this._active; },
+      getStickX: function() { return this._stickX; },
+      getStickY: function() { return this._stickY; },
+      isButtonPressed: function(id) { return !!this._buttons[id]; },
+
+      _setupButtons: function() {
+        var self = this;
+        this.BUTTON_IDS.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            el.classList.add('pressed');
+            self._buttons[id] = true;
+            resumeAudio(); // iOS: resume audio on gamepad touch
+          }, { passive: false });
+          el.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            el.classList.remove('pressed');
+            self._buttons[id] = false;
+          }, { passive: false });
+          el.addEventListener('touchcancel', function(e) {
+            el.classList.remove('pressed');
+            self._buttons[id] = false;
+          });
+        });
+      },
+
+      _setupStick: function() {
+        var self = this;
+        var zone = document.getElementById('touch-stick-zone');
+        var base = document.getElementById('touch-stick-base');
+        var RADIUS = 50;
+
+        zone.addEventListener('touchstart', function(e) {
+          e.preventDefault();
+          resumeAudio(); // iOS: resume audio on stick touch
+          var touch = e.changedTouches[0];
+          self._stickTouchId = touch.identifier;
+          var rect = base.getBoundingClientRect();
+          self._stickCenterX = rect.left + rect.width / 2;
+          self._stickCenterY = rect.top + rect.height / 2;
+          self._updateStick(touch.clientX, touch.clientY, RADIUS);
+        }, { passive: false });
+
+        zone.addEventListener('touchmove', function(e) {
+          e.preventDefault();
+          for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === self._stickTouchId) {
+              self._updateStick(e.changedTouches[i].clientX, e.changedTouches[i].clientY, RADIUS);
+              break;
+            }
+          }
+        }, { passive: false });
+
+        var endStick = function(e) {
+          for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === self._stickTouchId) {
+              self._stickTouchId = null;
+              self._knob.style.transform = 'translate(0px, 0px)';
+              self._stickX = 0;
+              self._stickY = 0;
+              break;
+            }
+          }
+        };
+        zone.addEventListener('touchend', endStick, { passive: false });
+        zone.addEventListener('touchcancel', endStick);
+      },
+
+      _updateStick: function(touchX, touchY, maxR) {
+        var dx = touchX - this._stickCenterX;
+        var dy = touchY - this._stickCenterY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > maxR) { dx = dx / dist * maxR; dy = dy / dist * maxR; }
+        this._knob.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
+        this._stickX = Math.round((dx / maxR) * 127);
+        this._stickY = Math.round((-dy / maxR) * 127);
+      }
+    };
+
+    // ESC button: dispatch real keyboard events so SDL/emscripten picks them up
+    (function() {
+      var escEl = document.getElementById('tb-esc');
+      if (!escEl) return;
+      var canvas = document.getElementById('canvas');
+      escEl.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        escEl.classList.add('pressed');
+        canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+      }, { passive: false });
+      escEl.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        escEl.classList.remove('pressed');
+        canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+      }, { passive: false });
+      escEl.addEventListener('touchcancel', function() {
+        escEl.classList.remove('pressed');
+        canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+      });
+    })();
+
+    // Auto-init when page loads
+    if (document.readyState === 'complete') {
+      TouchGamepad.init();
+    } else {
+      window.addEventListener('load', function() { TouchGamepad.init(); });
+    }
+  </script>
+
+  <script>
+    // ---- Mobile keyboard for ImGui text inputs ----
+    // iOS requires focus() in the same call stack as a user gesture.
+    // The C++ side sets Module._wantsTextInput when ImGui has an active text field.
+    // We check this flag on every touch and focus the hidden input if needed.
+    (function() {
+      var mobileInput = document.getElementById('mobile-keyboard-input');
+      if (!mobileInput) return;
+      var isShowingKeyboard = false;
+
+      // Pipe typed characters from the hidden input into SDL/Emscripten as key events
+      mobileInput.addEventListener('input', function(e) {
+        var canvas = document.getElementById('canvas');
+        var val = mobileInput.value;
+        if (val.length > 0) {
+          // Send each character as a keypress to the canvas
+          for (var i = 0; i < val.length; i++) {
+            var ch = val.charCodeAt(i);
+            canvas.dispatchEvent(new KeyboardEvent('keydown', { key: val[i], charCode: ch, keyCode: ch, which: ch, bubbles: true }));
+            canvas.dispatchEvent(new KeyboardEvent('keypress', { key: val[i], charCode: ch, keyCode: ch, which: ch, bubbles: true }));
+            canvas.dispatchEvent(new KeyboardEvent('keyup', { key: val[i], charCode: ch, keyCode: ch, which: ch, bubbles: true }));
+          }
+          mobileInput.value = '';
+        }
+      });
+
+      // Check on every touch if ImGui wants text input
+      function checkKeyboard() {
+        try {
+          if (Module && Module._web_wants_text_input) {
+            var wants = Module._web_wants_text_input();
+            if (wants && !isShowingKeyboard) {
+              isShowingKeyboard = true;
+              mobileInput.focus();
+            } else if (!wants && isShowingKeyboard) {
+              isShowingKeyboard = false;
+              mobileInput.blur();
+            }
+          }
+        } catch(e) {}
+      }
+
+      document.addEventListener('touchend', checkKeyboard, true);
+      document.addEventListener('click', checkKeyboard, true);
+    })();
+
+    // ---- Touch-drag scrolling for ImGui ----
+    // ImGui only scrolls via mouse wheel. Convert touch drag on the canvas
+    // into synthetic wheel events so scrollable ImGui panels work on mobile.
+    (function() {
+      function initTouchScroll(canvas) {
+        if (canvas._touchScrollBound) return;
+        canvas._touchScrollBound = true;
+      var lastTouchY = null;
+      var lastTouchX = null;
+      var scrollTouchId = null;
+
+      canvas.addEventListener('touchstart', function(e) {
+        // Only track one finger for scrolling; gamepad handles its own touches
+        if (scrollTouchId !== null) return;
+        var t = e.changedTouches[0];
+        // Ignore touches in the gamepad zones (bottom-left stick, right-side buttons)
+        if (t.clientY > window.innerHeight * 0.5) return;
+        scrollTouchId = t.identifier;
+        lastTouchY = t.clientY;
+        lastTouchX = t.clientX;
+      }, { passive: true });
+
+      canvas.addEventListener('touchmove', function(e) {
+        for (var i = 0; i < e.changedTouches.length; i++) {
+          var t = e.changedTouches[i];
+          if (t.identifier !== scrollTouchId) continue;
+
+          var dy = lastTouchY - t.clientY;
+          var dx = lastTouchX - t.clientX;
+          lastTouchY = t.clientY;
+          lastTouchX = t.clientX;
+
+          // Only scroll if vertical drag is dominant
+          if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 1) {
+            canvas.dispatchEvent(new WheelEvent('wheel', {
+              deltaY: dy * 3,
+              deltaX: 0,
+              bubbles: true,
+              clientX: t.clientX,
+              clientY: t.clientY
+            }));
+          }
+        }
+      }, { passive: true });
+
+      canvas.addEventListener('touchend', function(e) {
+        for (var i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === scrollTouchId) {
+            scrollTouchId = null;
+          }
+        }
+      }, { passive: true });
+
+      canvas.addEventListener('touchcancel', function() {
+        scrollTouchId = null;
+      }, { passive: true });
+      }
+
+      // Try immediately and retry until canvas exists
+      var c = document.getElementById('canvas');
+      if (c) {
+        initTouchScroll(c);
+      }
+      // Retry in case canvas isn't ready yet (Emscripten may recreate it)
+      setTimeout(function() { var c = document.getElementById('canvas'); if (c) initTouchScroll(c); }, 1000);
+      setTimeout(function() { var c = document.getElementById('canvas'); if (c) initTouchScroll(c); }, 3000);
+      setTimeout(function() { var c = document.getElementById('canvas'); if (c) initTouchScroll(c); }, 5000);
+    })();
+  </script>
+
+  {{{ SCRIPT }}}
+
+</body>
+</html>
