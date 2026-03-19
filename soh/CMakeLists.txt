@@ -197,11 +197,8 @@ if(BUILD_FOR_WEB)
     )
     # Suppress all warnings from decompiled N64 code
     target_compile_options(sm64 PRIVATE -w -O2)
-
-    # Expose libsm64 headers to the main soh target
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        "${CMAKE_SOURCE_DIR}/libsm64/src"
-    )
+    # Note: target_include_directories for ${PROJECT_NAME} is added below,
+    # after add_executable() defines the target.
 endif()
 
 find_library(ESPEAK espeak-ng)
@@ -387,6 +384,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE assets
 	${dr_libs_SOURCE_DIR}
 	.
 )
+
+# libsm64 include path (added here, after add_executable)
+if(BUILD_FOR_WEB)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        "${CMAKE_SOURCE_DIR}/libsm64/src"
+    )
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
