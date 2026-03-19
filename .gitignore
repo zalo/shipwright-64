@@ -451,7 +451,8 @@ CTestTestfile.cmake
 _deps
 _packages
 */extract_assets_cmake*
-/build*
+/build*/
+!/build_web.sh
 
 soh/src/boot/build.c
 soh/properties.h

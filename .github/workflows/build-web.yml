@@ -1,0 +1,117 @@
+name: Build Web (Emscripten) & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+concurrency:
+  group: "web-build-${{ github.ref }}"
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git python3 cmake ninja-build \
+            libglew-dev libsdl2-dev libz-dev zip pkg-config
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+          actions-cache-folder: emsdk-cache
+
+      # On cache miss, setup-emsdk runs from a random temp dir but copies to
+      # $GITHUB_WORKSPACE/emsdk-cache/. Force env to always use the workspace
+      # copy so CMakeCache.txt paths stay stable across runs.
+      - name: Pin emsdk to deterministic path
+        run: |
+          EXPECTED="$GITHUB_WORKSPACE/emsdk-cache/emsdk-main"
+          if [ "$EMSDK" != "$EXPECTED" ]; then
+            echo "Redirecting EMSDK from $EMSDK to $EXPECTED"
+            echo "EMSDK=$EXPECTED" >> $GITHUB_ENV
+            NODE_DIR=$(ls -d "$EXPECTED"/node/*/bin 2>/dev/null | head -1)
+            echo "EMSDK_NODE=$NODE_DIR/node" >> $GITHUB_ENV
+            echo "$EXPECTED" >> $GITHUB_PATH
+            echo "$EXPECTED/upstream/emscripten" >> $GITHUB_PATH
+          fi
+
+      - name: Cache Emscripten system libs
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/emsdk-cache/emsdk-main/upstream/emscripten/cache
+          key: emsdk-syslibs-3.1.64-${{ runner.os }}
+
+      - name: Generate libsm64 Mario geometry
+        run: |
+          cd libsm64
+          python3 import-mario-geo.py
+
+      - name: Cache build directory
+        uses: actions/cache@v4
+        with:
+          path: build-web
+          key: build-web-${{ github.ref_name }}-${{ runner.os }}-${{ hashFiles('soh/CMakeLists.txt', 'CMakeLists.txt', 'soh/src/**', 'soh/soh/**', 'libultraship', 'ZAPDTR', 'OTRExporter', 'libsm64/src/**') }}
+          restore-keys: |
+            build-web-${{ github.ref_name }}-${{ runner.os }}-
+            build-web-master-${{ runner.os }}-
+
+      - name: Verify Emscripten
+        run: emcc --version
+
+      - name: Configure CMake
+        run: |
+          emcmake cmake -B build-web -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      # file(DOWNLOAD) in libultraship re-downloads stb_image.h every
+      # configure, giving it a fresh timestamp. Since it's transitively
+      # included by nearly every source file, this forces a full rebuild.
+      # Backdate any freshly-touched deps to match existing .o files.
+      - name: Fix dep timestamps for incremental build
+        run: |
+          REF=$(find build-web -name '*.o' -printf '%T@ %p\n' 2>/dev/null | sort -n 2>/dev/null | head -1 | cut -d' ' -f2)
+          if [ -n "$REF" ]; then
+            COUNT=$(find build-web/_deps -type f -newer "$REF" | wc -l)
+            find build-web/_deps -type f -newer "$REF" -exec touch -r "$REF" {} +
+            echo "Backdated $COUNT files in _deps/ to match oldest cached .o ($REF)"
+          else
+            echo "No cached .o files found — fresh build"
+          fi
+
+      - name: Build for web
+        run: |
+          emmake cmake --build build-web --parallel 2
+
+      - name: Prepare build output
+        run: |
+          mkdir -p _site
+          cp build-web/soh/soh.html _site/index.html
+          cp build-web/soh/soh.js _site/
+          cp build-web/soh/soh.wasm _site/
+          cp build-web/soh/soh.data _site/ 2>/dev/null || true
+          cp soh/soh/web/soh.o2r _site/
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          keep_files: true
