@@ -97,15 +97,25 @@ jobs:
 
       - name: Build for web
         run: |
-          emmake cmake --build build-web --parallel 2 --verbose 2>&1 | tail -200
+          emmake cmake --build build-web --parallel 2
+
+      - name: List build output
+        if: always()
+        run: |
+          echo "=== build-web/soh/ contents ===" && ls -la build-web/soh/ 2>/dev/null || echo "(directory missing)"
+          echo "=== build-web/ top-level ===" && ls build-web/ 2>/dev/null | head -20
 
       - name: Prepare build output
         run: |
           mkdir -p _site
-          cp build-web/soh/soh.html _site/index.html
-          cp build-web/soh/soh.js _site/
-          cp build-web/soh/soh.wasm _site/
-          cp build-web/soh/soh.data _site/ 2>/dev/null || true
+          # Find the actual output location (may vary by cmake version)
+          SOH_HTML=$(find build-web -name "soh.html" 2>/dev/null | head -1)
+          SOH_DIR=$(dirname "$SOH_HTML")
+          echo "Found soh.html at: $SOH_HTML (dir: $SOH_DIR)"
+          cp "$SOH_HTML" _site/index.html
+          cp "$SOH_DIR/soh.js" _site/
+          cp "$SOH_DIR/soh.wasm" _site/
+          cp "$SOH_DIR/soh.data" _site/ 2>/dev/null || true
           cp soh/soh/web/soh.o2r _site/
 
       - name: Deploy to GitHub Pages
