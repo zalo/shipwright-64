@@ -172,14 +172,13 @@ if(BUILD_FOR_WEB)
     list(FILTER soh__ EXCLUDE REGEX "soh/Network/Sail/")
 
     # --- libsm64 (Super Mario 64 character library) ---
-    # Collect all C source files from libsm64's source tree
+    # Collect all C source files from libsm64's source tree.
+    # Include audio sources too — play_sound() is called by many Mario action
+    # files so excluding play_sound.c causes undefined symbol linker errors.
+    # We never call sm64_audio_tick() so audio produces no output.
     file(GLOB_RECURSE LIBSM64_C_SOURCES
         "${CMAKE_SOURCE_DIR}/libsm64/src/*.c"
     )
-    # Exclude audio files — SM64 audio is handled separately (not needed for character)
-    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/decomp/audio/.*\\.c$")
-    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/load_audio_data\\.c$")
-    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/play_sound\\.c$")
 
     add_library(sm64 STATIC ${LIBSM64_C_SOURCES})
     # PRIVATE: libsm64's internal decomp include paths must NOT leak into soh.
