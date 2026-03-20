@@ -72,15 +72,15 @@ static int16_t OotMatToSM64Surface(uint8_t mat) {
 
 static void AppendFromHeader(std::vector<SM64Surface>& out,
                              CollisionHeader* header) {
-    if (!header || header->numPolygons <= 0 ||
-        !header->vertices || !header->polygons) {
+    if (!header || header->numPolygons == 0 ||
+        !header->vtxList || !header->polyList) {
         return;
     }
 
     out.reserve(out.size() + (size_t)header->numPolygons);
 
     for (int i = 0; i < header->numPolygons; i++) {
-        CollisionPoly* poly = &header->polygons[i];
+        CollisionPoly* poly = &header->polyList[i];
 
         // Lower 13 bits of vtxData hold the vertex index
         int vi0 = poly->vtxData[0] & 0x1FFF;
@@ -93,9 +93,9 @@ static void AppendFromHeader(std::vector<SM64Surface>& out,
             continue;
         }
 
-        Vec3s* v0 = &header->vertices[vi0];
-        Vec3s* v1 = &header->vertices[vi1];
-        Vec3s* v2 = &header->vertices[vi2];
+        Vec3s* v0 = &header->vtxList[vi0];
+        Vec3s* v1 = &header->vtxList[vi1];
+        Vec3s* v2 = &header->vtxList[vi2];
 
         uint8_t mat = 0;
         if (header->surfaceTypeList && poly->type < 0x1FF) {
