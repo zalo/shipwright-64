@@ -106,24 +106,19 @@ jobs:
 
       - name: Build for web
         run: |
-          emmake cmake --build build-web --parallel 2
+          emmake cmake --build build-web --parallel 2 2>&1 | tee /tmp/build.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "=== Last 50 lines of build output ==="
+          tail -50 /tmp/build.log
+          exit $EXIT_CODE
 
       - name: List build output and show linker error
         if: always()
         run: |
-          echo "=== build-web/soh/ contents ===" && ls -la build-web/soh/ 2>/dev/null || echo "(directory missing)"
-          echo "=== Memory info ===" && free -h
-          # Extract and re-run the link command to capture error output
-          if [ ! -f build-web/soh/soh.html ]; then
-            echo "=== Extracting link command from build.ninja ==="
-            # The ninja build rule for soh.html contains the actual emcc link command
-            grep -A5 "LINK_RULE\|soh/soh.html" build-web/build.ninja 2>/dev/null | head -20 || true
-            # Find the ninja rule for soh.html
-            grep -B2 -A10 "^build soh/soh.html" build-web/soh/build.ninja 2>/dev/null | head -20 || true
-            echo "=== CMake link script ==="
-            ls build-web/soh/CMakeFiles/soh.dir/ 2>/dev/null
-            cat build-web/soh/CMakeFiles/soh.dir/link.txt 2>&1 | cut -c1-300 | head -5 || echo "no link.txt"
-          fi
+          echo "=== build-web/soh/ contents ===" && ls -la build-web/soh/ 2>/dev/null || echo "(missing)"
+          echo "=== ninja log last entries ===" && tail -10 build-web/.ninja_log 2>/dev/null || echo "no ninja log"
+          echo "=== link.txt ===" && cat build-web/soh/CMakeFiles/soh.dir/link.txt 2>/dev/null | cut -c1-500 | head -5 || echo "no link.txt"
+          echo "=== build log tail ===" && tail -100 /tmp/build.log 2>/dev/null | grep -v "Building C\|Building CXX"
 
       - name: Prepare build output
         run: |
