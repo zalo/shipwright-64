@@ -182,7 +182,10 @@ if(BUILD_FOR_WEB)
     list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/play_sound\\.c$")
 
     add_library(sm64 STATIC ${LIBSM64_C_SOURCES})
-    target_include_directories(sm64 PUBLIC
+    # PRIVATE: libsm64's internal decomp include paths must NOT leak into soh.
+    # The soh target gets only libsm64/src (for libsm64.h) via its own
+    # target_include_directories block below the add_executable() call.
+    target_include_directories(sm64 PRIVATE
         "${CMAKE_SOURCE_DIR}/libsm64/src"
         "${CMAKE_SOURCE_DIR}/libsm64/src/decomp"
         "${CMAKE_SOURCE_DIR}/libsm64/src/decomp/include"
