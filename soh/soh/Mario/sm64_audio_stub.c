@@ -45,3 +45,21 @@ void set_sound_mode(unsigned short soundMode) { (void)soundMode; }
 void play_menu_sounds(short soundMenuFlags) { (void)soundMenuFlags; }
 void fadeout_music(short fadeOutTime) { (void)fadeOutTime; }
 void fadeout_level_music(short fadeTimer) { (void)fadeTimer; }
+
+/* ---------------------------------------------------------------------- */
+/* Additional audio globals and functions referenced by Mario action code  */
+/* These are normally defined in decomp/audio/ which we exclude.           */
+/* ---------------------------------------------------------------------- */
+
+/* Random seed used by audio code for variation — any fixed value works */
+unsigned int gAudioRandom = 0x12345678;
+
+/* Cap/hat music functions — no-ops since we have no SM64 audio engine */
+void stop_sound(unsigned int soundBits, float* pos) { (void)soundBits; (void)pos; }
+void stop_cap_music(void) {}
+void fadeout_cap_music(void) {}
+void play_cap_music(unsigned short seqArgs) { (void)seqArgs; }
+void stop_background_music(unsigned short seqId) { (void)seqId; }
+void play_music(unsigned char player, unsigned short seqArgs, unsigned short fadeTimer) {
+    (void)player; (void)seqArgs; (void)fadeTimer;
+}
