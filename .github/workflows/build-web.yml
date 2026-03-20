@@ -78,7 +78,7 @@ jobs:
       - name: Configure CMake
         run: |
           emcmake cmake -B build-web -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Debug
 
       # file(DOWNLOAD) in libultraship re-downloads stb_image.h every
       # configure, giving it a fresh timestamp. Since it's transitively
