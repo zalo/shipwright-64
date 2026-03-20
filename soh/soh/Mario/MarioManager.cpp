@@ -14,11 +14,13 @@
 #include "soh/ShipInit.hpp"
 #include "soh/cvar_prefixes.h"
 
+// macros.h includes C++ headers (endianness.h), must be outside extern "C"
+#include "macros.h"
+
 extern "C" {
 extern PlayState* gPlayState;
 #include "z64.h"
 #include "z64actor.h"
-#include "macros.h"
 }
 
 #define CVAR_MARIO_MODE "gMarioModeEnabled"

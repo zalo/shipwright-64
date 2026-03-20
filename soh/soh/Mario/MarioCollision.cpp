@@ -6,11 +6,13 @@
 #include <vector>
 #include <stdint.h>
 
-// OoT C headers — included only here to avoid typedef conflicts in C++ headers
+// macros.h includes C++ headers (endianness.h), must be outside extern "C"
+#include "macros.h"
+
+// Pure C OoT headers — safe inside extern "C"
 extern "C" {
 #include "z64.h"
 #include "z64bgcheck.h"
-#include "macros.h"
 }
 
 // ---------------------------------------------------------------------------

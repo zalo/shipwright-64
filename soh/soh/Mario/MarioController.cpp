@@ -4,10 +4,13 @@
 
 #include <cmath>
 
+// macros.h pulls in C++ headers (endianness.h has namespace Ship),
+// so it must NOT go inside extern "C". Include C++ headers first.
+#include "macros.h"
+
 extern "C" {
 #include "z64.h"
 #include "z64actor.h"
-#include "macros.h"
 }
 
 SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
@@ -23,15 +26,12 @@ SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
     if (mag > 1.0f) { sx /= mag; sy /= mag; }
 
     // SM64 uses camera-relative stick direction.
-    // Extract the camera's yaw from OoT's active camera.
-    // play->activeCamera indexes into play->cameraPtrs[]
+    // Extract the yaw from OoT's active camera.
     Camera* cam = GET_ACTIVE_CAM(play);
 
-    // cam->eye and cam->at are Vec3f world-space positions.
-    // The camera forward (horizontal) vector gives us the yaw.
     float dx = cam->at.x - cam->eye.x;
     float dz = cam->at.z - cam->eye.z;
-    float camYaw = atan2f(dx, dz);   // angle of camera forward in XZ plane
+    float camYaw = atan2f(dx, dz);
 
     // Rotate stick to be camera-relative
     float cosY = cosf(-camYaw);
@@ -45,8 +45,7 @@ SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
     if (inputs.stickY >  1.0f) inputs.stickY =  1.0f;
     if (inputs.stickY < -1.0f) inputs.stickY = -1.0f;
 
-    // SM64 wants the camera look direction so it can compute relative movement.
-    // Since we already rotated the stick above, pass zero here.
+    // Camera look direction: already applied via stick rotation above, pass zero
     inputs.camLookX = 0.0f;
     inputs.camLookZ = 0.0f;
 
