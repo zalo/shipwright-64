@@ -25,6 +25,15 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Maximize build space (swap + free disk)
+        run: |
+          # Add 8 GB swap to help the WASM linker (wasm-ld) avoid OOM
+          sudo fallocate -l 8G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - name: Install dependencies
         run: |
           sudo apt-get update

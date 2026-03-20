@@ -680,7 +680,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
                 -sUSE_VORBIS=1
                 -sUSE_LIBPNG=1
                 -sWASM=1
-                -sASSERTIONS=1
+                -sASSERTIONS=0
                 -sALLOW_MEMORY_GROWTH=1
                 -sINITIAL_MEMORY=268435456
                 -sSTACK_SIZE=5242880
