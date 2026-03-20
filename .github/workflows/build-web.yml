@@ -106,6 +106,8 @@ jobs:
 
       - name: Build for web
         run: |
+          export EMCC_DEBUG=1
+          emmake cmake --build build-web --parallel 2 2>&1 | grep -E "error:|warning.*duplicate|duplicate symbol|wasm-ld" | head -20 || true
           emmake cmake --build build-web --parallel 2
 
 
