@@ -2,10 +2,12 @@
 #ifdef __EMSCRIPTEN__
 
 #include <vector>
+#include <stdint.h>
 #include <libsm64.h>
 
+// Forward declarations — CollisionHeader is fully defined in z64bgcheck.h
+// which is included only in MarioCollision.cpp to avoid typedef conflicts.
 typedef struct PlayState PlayState;
-typedef struct CollisionHeader CollisionHeader;
 
 class MarioCollision {
 public:
@@ -13,16 +15,10 @@ public:
     static std::vector<SM64Surface> BuildSurfacesFromScene(PlayState* play);
 
     // Dynamic surface objects (moving platforms etc.)
-    static uint32_t CreateDynamicObject(CollisionHeader* header,
-                                        float x, float y, float z, float ry);
+    // objectId is the SM64 surface object handle returned by sm64_surface_object_create
     static void UpdateDynamicObject(uint32_t objId,
                                     float x, float y, float z, float ry);
     static void DeleteDynamicObject(uint32_t objId);
-
-private:
-    static void AppendFromHeader(std::vector<SM64Surface>& out,
-                                 CollisionHeader* header);
-    static uint16_t MapSurfaceType(uint32_t ootData);
 };
 
 #endif // __EMSCRIPTEN__
