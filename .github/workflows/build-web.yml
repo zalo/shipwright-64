@@ -87,7 +87,7 @@ jobs:
       - name: Configure CMake
         run: |
           emcmake cmake -B build-web -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_BUILD_TYPE=Release
 
       # file(DOWNLOAD) in libultraship re-downloads stb_image.h every
       # configure, giving it a fresh timestamp. Since it's transitively
@@ -104,27 +104,10 @@ jobs:
             echo "No cached .o files found — fresh build"
           fi
 
-      - name: Build for web (compile only, no link)
+      - name: Build for web
         run: |
-          emmake cmake --build build-web --parallel 2 --target sm64 2>&1 | tail -5 || true
-          emmake cmake --build build-web --parallel 2 --target ZAPDLib 2>&1 | tail -5 || true
-          emmake cmake --build build-web --parallel 2 --target libultraship 2>&1 | tail -5 || true
-          emmake cmake --build build-web --parallel 2 --target OTRExporter 2>&1 | tail -5 || true
-          # Compile all soh objects using ninja directly (skips link step)
-          emmake ninja -C build-web -j2 -k0 2>&1 | grep -v "Building C\|Building CXX" | tail -20 || true
+          emmake cmake --build build-web --parallel 2
 
-      - name: Link soh.html with EMCC_DEBUG
-        run: |
-          export EMCC_DEBUG=1
-          emmake cmake --build build-web --parallel 1 --target soh 2>&1 | tail -100
-
-      - name: List build output and show linker error
-        if: always()
-        run: |
-          echo "=== build-web/soh/ contents ===" && ls -la build-web/soh/ 2>/dev/null || echo "(missing)"
-          echo "=== ninja log last entries ===" && tail -10 build-web/.ninja_log 2>/dev/null || echo "no ninja log"
-          echo "=== link.txt ===" && cat build-web/soh/CMakeFiles/soh.dir/link.txt 2>/dev/null | cut -c1-500 | head -5 || echo "no link.txt"
-          echo "=== build log tail ===" && tail -100 /tmp/build.log 2>/dev/null | grep -v "Building C\|Building CXX"
 
       - name: Prepare build output
         run: |
