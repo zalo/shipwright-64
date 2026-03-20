@@ -170,6 +170,9 @@ endif()
 if(BUILD_FOR_WEB)
     list(FILTER soh__ EXCLUDE REGEX "soh/Network/CrowdControl/")
     list(FILTER soh__ EXCLUDE REGEX "soh/Network/Sail/")
+    # Exclude sm64_audio_stub.c from the soh GLOB — it's compiled as part of
+    # the sm64 static library; including it in soh too causes duplicate symbols.
+    list(FILTER soh__ EXCLUDE REGEX "soh/Mario/sm64_audio_stub\\.c$")
 
     # --- libsm64 (Super Mario 64 character library) ---
     # Collect all C source files from libsm64, but exclude the heavy audio
