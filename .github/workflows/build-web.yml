@@ -97,7 +97,7 @@ jobs:
 
       - name: Build for web
         run: |
-          emmake cmake --build build-web --parallel 2
+          emmake cmake --build build-web --parallel 2 --verbose 2>&1 | tail -200
 
       - name: Prepare build output
         run: |
