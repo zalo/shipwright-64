@@ -172,12 +172,26 @@ if(BUILD_FOR_WEB)
     list(FILTER soh__ EXCLUDE REGEX "soh/Network/Sail/")
 
     # --- libsm64 (Super Mario 64 character library) ---
-    # Collect all C source files from libsm64's source tree.
-    # Include audio sources too — play_sound() is called by many Mario action
-    # files so excluding play_sound.c causes undefined symbol linker errors.
-    # We never call sm64_audio_tick() so audio produces no output.
+    # Collect all C source files from libsm64, but exclude the heavy audio
+    # synthesis engine (seqplayer, synthesis, heap, load, etc.) to keep the
+    # WASM binary small enough for the GitHub Actions linker.
+    # audio_stub.c provides minimal play_sound() / g_play_sound_func stubs
+    # that satisfy the symbols Mario action code calls without the full engine.
     file(GLOB_RECURSE LIBSM64_C_SOURCES
         "${CMAKE_SOURCE_DIR}/libsm64/src/*.c"
+    )
+    # Exclude all decomp audio synthesis code (too large; OOM during WASM link)
+    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/decomp/audio/.*\\.c$")
+    # Exclude libsm64-level audio helpers that depend on decomp audio
+    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/load_audio_data\\.c$")
+    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/play_sound\\.c$")
+    # Exclude sound_init.c: it includes decomp/audio/external.h which drags
+    # in the full audio engine; our audio_stub.c stubs its symbols instead
+    list(FILTER LIBSM64_C_SOURCES EXCLUDE REGEX ".*/game/sound_init\\.c$")
+    # Add our minimal stub that satisfies all audio symbol references.
+    # Placed in soh/Mario/ (not libsm64/) since libsm64 is a git submodule.
+    list(APPEND LIBSM64_C_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/soh/Mario/sm64_audio_stub.c"
     )
 
     add_library(sm64 STATIC ${LIBSM64_C_SOURCES})
