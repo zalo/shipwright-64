@@ -5,8 +5,10 @@
 #include <string.h>
 #include <libsm64.h>
 
-static MarioRenderer sRendererInstance;
-MarioRenderer* MarioRenderer::Get() { return &sRendererInstance; }
+MarioRenderer* MarioRenderer::Get() {
+    static MarioRenderer sInstance;
+    return &sInstance;
+}
 
 // ---------------------------------------------------------------------------
 // GLSL shaders

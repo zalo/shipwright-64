@@ -23,8 +23,10 @@ extern PlayState* gPlayState;
 
 #define CVAR_MARIO_MODE "gMarioModeEnabled"
 
-static MarioManager sInstance;
-MarioManager* MarioManager::Get() { return &sInstance; }
+MarioManager* MarioManager::Get() {
+    static MarioManager sInstance;
+    return &sInstance;
+}
 
 // ---------------------------------------------------------------------------
 // Initialisation from SM64 ROM bytes
