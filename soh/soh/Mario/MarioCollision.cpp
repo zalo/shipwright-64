@@ -6,13 +6,13 @@
 #include <vector>
 #include <stdint.h>
 
-// macros.h includes C++ headers (endianness.h), must be outside extern "C"
-#include "macros.h"
+// bridge.h pre-includes C++ headers so macros.h is safe inside extern "C"
+#include <libultraship/bridge.h>
 
-// Pure C OoT headers — safe inside extern "C"
 extern "C" {
 #include "z64.h"
 #include "z64bgcheck.h"
+#include "macros.h"
 }
 
 // ---------------------------------------------------------------------------

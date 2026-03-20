@@ -3,14 +3,13 @@
 #include "MarioController.h"
 
 #include <cmath>
-
-// macros.h pulls in C++ headers (endianness.h has namespace Ship),
-// so it must NOT go inside extern "C". Include C++ headers first.
-#include "macros.h"
+// bridge.h pre-includes all C++ headers so macros.h is safe inside extern "C"
+#include <libultraship/bridge.h>
 
 extern "C" {
 #include "z64.h"
 #include "z64actor.h"
+#include "macros.h"
 }
 
 SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
@@ -18,17 +17,15 @@ SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
 
     // --- Stick ---
     Input* ctrl = &play->state.input[0];
-    float sx = (float)ctrl->cur.stick_x / 64.0f;  // N64 stick range: -64..+63
+    float sx = (float)ctrl->cur.stick_x / 64.0f;
     float sy = (float)ctrl->cur.stick_y / 64.0f;
 
     // Clamp to unit circle
     float mag = sqrtf(sx * sx + sy * sy);
     if (mag > 1.0f) { sx /= mag; sy /= mag; }
 
-    // SM64 uses camera-relative stick direction.
-    // Extract the yaw from OoT's active camera.
+    // Extract camera yaw from OoT's active camera
     Camera* cam = GET_ACTIVE_CAM(play);
-
     float dx = cam->at.x - cam->eye.x;
     float dz = cam->at.z - cam->eye.z;
     float camYaw = atan2f(dx, dz);
@@ -39,13 +36,12 @@ SM64MarioInputs MarioController::BuildInputs(PlayState* play) {
     inputs.stickX =  sx * cosY + sy * sinY;
     inputs.stickY = -sx * sinY + sy * cosY;
 
-    // Clamp to [-1, 1]
+    // Clamp
     if (inputs.stickX >  1.0f) inputs.stickX =  1.0f;
     if (inputs.stickX < -1.0f) inputs.stickX = -1.0f;
     if (inputs.stickY >  1.0f) inputs.stickY =  1.0f;
     if (inputs.stickY < -1.0f) inputs.stickY = -1.0f;
 
-    // Camera look direction: already applied via stick rotation above, pass zero
     inputs.camLookX = 0.0f;
     inputs.camLookZ = 0.0f;
 
