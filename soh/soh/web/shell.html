@@ -206,13 +206,16 @@
     </div>
     <input type="file" id="otr-file" accept=".otr,.o2r,.z64,.n64,.v64" multiple>
 
-    <!-- SM64 ROM picker — optional, enables Mario Mode -->
+    <!-- SM64 ROM picker — separate from OoT picker, enables Mario Mode -->
     <div id="sm64-picker" onclick="document.getElementById('sm64-file').click()"
          style="margin-top:12px; padding:12px 16px; border:2px dashed #e52213;
                 border-radius:8px; cursor:pointer; opacity:0.85; font-size:13px;">
       <p style="margin:0; font-weight:bold; color:#e52213;">&#127875; Optional: Mario Mode</p>
       <p style="margin:4px 0 0; color:#ccc;">
-        Load a <strong>Super Mario 64 (US) .z64</strong> ROM to play as Mario in Hyrule
+        Load <strong>Super Mario 64 (US) .z64</strong> separately to play as Mario
+      </p>
+      <p style="margin:4px 0 0; color:#888; font-size:11px;">
+        &#9888; Load OoT ROM first, then load SM64 ROM here after the game starts
       </p>
       <p id="sm64-status" style="margin:4px 0 0; color:#aaa; font-size:11px;">Not loaded</p>
     </div>
@@ -529,6 +532,22 @@
       return ext === 'z64' || ext === 'n64' || ext === 'v64';
     }
 
+    // Returns true if the ArrayBuffer looks like an OoT ROM (not SM64).
+    // SM64 US big-endian z64 starts with bytes: 80 37 12 40
+    // OoT  US big-endian z64 starts with bytes: 80 37 12 40... wait, same magic.
+    // Distinguish by the game title at offset 0x20: OoT = "THE LEGEND OF ZELDA"
+    function isOotRom(arrayBuffer) {
+      var view = new DataView(arrayBuffer);
+      var magic = view.getUint32(0, false); // big-endian
+      if (magic !== 0x80371240) return false; // not a valid big-endian N64 ROM
+      // Check game title at offset 0x20 (20 bytes, ASCII)
+      var title = '';
+      for (var i = 0; i < 20; i++) {
+        title += String.fromCharCode(view.getUint8(0x20 + i));
+      }
+      return title.indexOf('ZELDA') >= 0 || title.indexOf('zelda') >= 0;
+    }
+
     function extractRomInBrowser(romArrayBuffer, romFileName) {
       setStatus('Writing ROM to virtual filesystem...');
       setProgress(20);
@@ -625,12 +644,36 @@
 
       function onAllOtrProcessed() {
         if (pendingRom) {
-          // Read and extract the ROM after OTR files are loaded
+          // Read and validate the ROM before extracting
           setStatus('Reading ROM file...');
           setProgress(15);
           var reader = new FileReader();
           reader.onload = function(e) {
-            extractRomInBrowser(e.target.result, pendingRom.name);
+            var buf = e.target.result;
+            // Reject SM64 ROMs accidentally dropped on the OoT picker
+            if (!isOotRom(buf)) {
+              // Check if it might be a SM64 ROM and offer to route it correctly
+              var view = new DataView(buf);
+              var magic = view.getUint32(0, false);
+              if (magic === 0x80371240) {
+                // Valid N64 ROM but not OoT — probably SM64, route to Mario mode
+                showError('This looks like an SM64 ROM, not an OoT ROM. ' +
+                          'Use the red \u{1F975} Mario Mode picker below for the SM64 ROM, ' +
+                          'and load your OoT ROM here.');
+                hideProgress();
+                // Auto-route to SM64 handler
+                sm64RomBuffer = buf;
+                sm64RomSize = buf.byteLength;
+                var el = document.getElementById('sm64-status');
+                if (el) el.textContent = 'ROM detected from main picker — loading as SM64...';
+                tryLoadBufferedSM64Rom();
+              } else {
+                showError('Unrecognized ROM. Please provide the Ocarina of Time (US) .z64 ROM.');
+                hideProgress();
+              }
+              return;
+            }
+            extractRomInBrowser(buf, pendingRom.name);
           };
           reader.onerror = function() {
             showError('Failed to read ROM file: ' + pendingRom.name);
