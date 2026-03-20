@@ -108,11 +108,20 @@ jobs:
         run: |
           emmake cmake --build build-web --parallel 2
 
-      - name: List build output
+      - name: List build output and show linker error
         if: always()
         run: |
           echo "=== build-web/soh/ contents ===" && ls -la build-web/soh/ 2>/dev/null || echo "(directory missing)"
           echo "=== build-web/ top-level ===" && ls build-web/ 2>/dev/null | head -20
+          echo "=== Memory info ===" && free -h
+          echo "=== Swap info ===" && swapon --show 2>/dev/null || echo "no swap info"
+          # Try to run only the link step with verbose output to expose the error
+          if [ ! -f build-web/soh/soh.html ]; then
+            echo "=== Re-running link step verbosely ==="
+            grep -h "LINK_LIBRARIES\|link.txt" build-web/soh/CMakeFiles/soh.dir/ 2>/dev/null | head -5 || true
+            # Dump the actual link command from ninja
+            cat build-web/soh/CMakeFiles/soh.dir/link.txt 2>/dev/null | head -3 || echo "no link.txt found"
+          fi
 
       - name: Prepare build output
         run: |
