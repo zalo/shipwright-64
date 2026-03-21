@@ -213,11 +213,16 @@ if(BUILD_FOR_WEB)
         TARGET_WEB=1
         GBI_FLOATS=1
         SM64_LIB_EXPORT=1
-        # Rename libsm64's GBI wrapper functions to avoid duplicate symbol errors
-        # with soh/GbiWrap.cpp which also defines gSPMatrix and gSPDisplayList.
-        # libsm64's versions are SM64-internal; they don't need to be exported.
+        # Rename libsm64 symbols that duplicate OoT's libultra/GBI implementations.
+        # libsm64's decomp shares N64 SDK names with OoT's libultra; without renaming
+        # the linker silently picks libsm64's versions, corrupting OoT's rendering.
         gSPMatrix=sm64_gSPMatrix
         gSPDisplayList=sm64_gSPDisplayList
+        # N64 matrix utility functions (also in soh/src/libultra/gu/)
+        guMtxF2L=sm64_guMtxF2L
+        guMtxL2F=sm64_guMtxL2F
+        guMtxIdent=sm64_guMtxIdent
+        guMtxIdentF=sm64_guMtxIdentF
     )
     # Suppress all warnings from decompiled N64 code
     target_compile_options(sm64 PRIVATE -w -O2)
